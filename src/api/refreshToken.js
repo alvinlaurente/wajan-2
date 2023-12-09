@@ -3,6 +3,9 @@ const router = express.Router();
 const { refreshTheApiToken } = require('../utility/refreshToken');
 require('dotenv').config();
 
+const TOKEN_SECRET = process.env.TOKEN_SECRET;
+const TOKEN_PREFIX = process.env.TOKEN_SECRET;
+
 router.post('/refresh-token', async (req, res) => {
   try {
     const { username, token } = req.user;
@@ -16,8 +19,7 @@ router.post('/refresh-token', async (req, res) => {
       }
     }
     
-    const TOKEN_SECRET = process.env.TOKEN_SECRET;
-    const signedJwtToken = 'TSTMY' + jwt.sign(payload, TOKEN_SECRET);
+    const signedJwtToken = TOKEN_PREFIX + jwt.sign(payload, TOKEN_SECRET);
 
     return res.status(200).json({
       message: 'Refresh token successful',

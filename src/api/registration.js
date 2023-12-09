@@ -8,6 +8,7 @@ const router = express.Router();
 require('dotenv').config();
 const THEAPI_REGISTRATION_ENDPOINT = process.env.THEAPI_REGISTRATION_ENDPOINT;
 const TOKEN_SECRET = process.env.TOKEN_SECRET;
+const TOKEN_PREFIX = process.env.TOKEN_SECRET;
 
 // Set up multer middleware for handling file uploads
 const storage = multer.memoryStorage(); // customize storage as needed
@@ -137,7 +138,7 @@ router.post('/register', upload.single('profile_image'), async (req, res) => {
       }
     };
 
-    const signedJwtToken = 'TSTMY' + jwt.sign(payload, TOKEN_SECRET)
+    const signedJwtToken = TOKEN_PREFIX + jwt.sign(payload, TOKEN_SECRET)
 
     return res.status(201).json({
       message: 'Registration successful',
