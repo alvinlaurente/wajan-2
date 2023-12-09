@@ -13,7 +13,23 @@ router.get('/profile', authenticateJWT, async (req, res) => {
         authorization: token.accessToken,
       },
     });
-    return res.status(200).json(response.data);
+
+    if (response.status !== 200) {
+      return res.status(response.status).json({
+        message: response.data.detail
+      })
+    }
+
+    if (response.status === 200 && response.data) {
+      return res.status(200).json({
+        message: 'Profile found',
+        article: response.data
+      })
+    }
+
+    return res.status(404).json({
+      message: 'Profile is not found.'
+    })
   } catch (error) {
     console.error('Error fetching profile:', error.message);
     res.status(500).json({ error: 'Internal Server Error' });
