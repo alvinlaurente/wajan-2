@@ -1,4 +1,7 @@
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const fs = require('fs');
+const sizeOf = require('image-size');
 const express = require('express');
 const router = express.Router();
 
@@ -6,10 +9,43 @@ require('dotenv').config();
 const THEAPI_REGISTRATION_ENDPOINT = process.env.THEAPI_REGISTRATION_ENDPOINT;
 const TOKEN_SECRET = process.env.TOKEN_SECRET;
 
+// Set up multer middleware for handling file uploads
+const storage = multer.memoryStorage(); // customize storage as needed
+const upload = multer({ storage: storage });
+
 let theapiJwtToken = null;
 let theapiJwtTokenRefresh = null;
 
-router.post('/register', async (req, res) => {
+const validateEmail = (email) => {
+  return String(email)
+    .toLowerCase()
+    .match(
+      /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+    );
+};
+
+const validatePhoneNumber = (phoneNumber) => {
+  return String(phoneNumber)
+    .match(/^\+628\d{8,11}$/)
+}
+
+const isValidImage = (buffer) => {
+  try {
+    // Use image-size library to get the dimensions of the image
+    const dimensions = sizeOf(buffer);
+
+    // Check if the image has valid dimensions (you can adjust the criteria)
+    if (dimensions.width >= 1 && dimensions.height >= 1) {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
+router.post('/register', upload.single('profile_image'), async (req, res) => {
   try {
     const {
       username,
@@ -17,7 +53,6 @@ router.post('/register', async (req, res) => {
       first_name,
       last_name,
       telephone,
-      profile_image,
       address,
       city,
       province,
@@ -29,7 +64,6 @@ router.post('/register', async (req, res) => {
       !first_name ||
       !last_name ||
       !telephone ||
-      !profile_image ||
       !address ||
       !city ||
       !province ||
@@ -38,17 +72,53 @@ router.post('/register', async (req, res) => {
       return res.badRequest();
     }
 
+    let errorDetails = {};
+    let validate = true;
+
+    if (!validateEmail(username)) {
+      validate = false;
+      errorDetails['username'] = 'Enter a valid email address.'
+    }
+    if (!validatePhoneNumber(telephone)) {
+      validate = false;
+      errorDetails['telephone'] = 'Enter a valid phone number.'
+    }
+
+    // Check if the 'profile_image' field is present in the request
+    if (!req.profile_image) {
+      return res.status(400).json({ success: false, error: 'No file provided' });
+    }
+    // Access the uploaded file information
+    const uploadedFile = req.profile_image;
+    
+    if (!isValidImage(uploadedFile.buffer)) {
+      validate = false;
+      errorDetails['profile_image'] = 'The submitted data was not a file. Check the encoding type on the form.'
+    }
+
+    if (!validate) {
+      return res.status(400).json({
+        details: errorDetails
+      })
+    }
+
     const form = new FormData();
-    form.append('username', req.body.username);
-    form.append('password', req.body.password);
-    form.append('first_name', req.body.first_name);
-    form.append('last_name', req.body.last_name);
-    form.append('telephone', req.body.telephone);
-    form.append('profile_image', req.body.profile_image); // Assuming profile_image is a file path or Buffer
-    form.append('address', req.body.address);
-    form.append('city', req.body.city);
-    form.append('province', req.body.province);
-    form.append('country', req.body.country);
+    form.append('username', username);
+    form.append('password', password);
+    form.append('first_name', first_name);
+    form.append('last_name', last_name);
+    form.append('telephone', telephone);
+    form.append('address', address);
+    form.append('city', city);
+    form.append('province', province);
+    form.append('country', country);
+
+    // Save the file to a temporary location
+    const tempFilePath = `../../temp/${uploadedFile.originalname}`;
+    fs.writeFileSync(tempFilePath, uploadedFile.buffer)
+    
+    // Append the file to form
+    form.append('profile_image', fs.createReadStream(tempFilePath), { filename: uploadedFile.originalname });
 
     const response = await axios.post(`${THEAPI_REGISTRATION_ENDPOINT}/register`, form, {
       headers: {

@@ -2,7 +2,10 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 require('dotenv').config();
+
 const app = express();
+const bodyParser = require('body-parser');
+app.use(bodyParser.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT;
 
